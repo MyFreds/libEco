@@ -52,4 +52,4 @@ libEco::reduceMoney($player, $amount, static function(bool $success): void{
 ```
 
 ## Credits
-(Taylor-pm-pl)[https://github.com/Taylor-pm-pl]
+[Taylor-pm-pl](https://github.com/Taylor-pm-pl)
