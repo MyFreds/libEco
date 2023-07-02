@@ -39,6 +39,9 @@ libEco::addMoney($player, $amount);
 
 ```php
 use davidglitch04\libEco\libEco;
+# OPTION 1
+libEco::reduceMoney($player, $amount);
+# OPTION 2
 libEco::reduceMoney($player, $amount, static function(bool $success) : void {
 	if($success){
 		//TODO IF SUCCESS

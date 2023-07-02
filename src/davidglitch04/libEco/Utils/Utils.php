@@ -4,8 +4,7 @@ namespace davidglitch04\libEco\Utils;
 
 final class Utils {
 
-    public function __construct()
-    {
+    public function __construct(){
         //NOTHING
     }
 
