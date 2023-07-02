@@ -2,7 +2,7 @@
 **libEco is a PocketMine-MP virion that makes easy to use API of economy plugins!**
 
 ## Installation
-You can get the compiled .phar file on poggit by clicking [here](https://poggit.pmmp.io/ci/David-pm-pl/libEco/~).
+You can get the compiled .phar file on poggit by clicking [here](https://poggit.pmmp.io/ci/ACM-PocketMine-MP/libEco/libEco).
 
 ## Supports
 Currently this library only supports BedrockEconomy and EconomyAPI.
@@ -16,7 +16,7 @@ LibEconomy makes using the economy plugins API easier!.
 use davidglitch04\libEco\libEco;
 if(libEco::isInstall()){
 // Installed
-} else{
+}else{
 // No any eco
 }
 ```
@@ -24,7 +24,7 @@ if(libEco::isInstall()){
 
 ```php
 use davidglitch04\libEco\libEco;
-libEco::myMoney($player, static function(float $money) : void {
+libEco::myMoney($player, static function(float $money): void{
 	var_dump($money);
 });
 ```
@@ -42,11 +42,14 @@ use davidglitch04\libEco\libEco;
 # OPTION 1
 libEco::reduceMoney($player, $amount);
 # OPTION 2
-libEco::reduceMoney($player, $amount, static function(bool $success) : void {
+libEco::reduceMoney($player, $amount, static function(bool $success): void{
 	if($success){
 		//TODO IF SUCCESS
-	} else{
+	}else{
 		//TODO IF FAIL
 	}
 });
 ```
+
+## Credits
+(Taylor-pm-pl)[https://github.com/Taylor-pm-pl]
