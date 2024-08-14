@@ -5,73 +5,148 @@ declare(strict_types=1);
 namespace davidglitch04\libEco;
 
 use Closure;
-use cooldogedev\BedrockEconomy\api\legacy\ClosureContext;
+use cooldogedev\BedrockEconomy\api\BedrockEconomyAPI;
+use cooldogedev\BedrockEconomy\libs\cooldogedev\libSQL\context\ClosureContext;
 use davidglitch04\libEco\Utils\Utils;
 use onebone\economyapi\EconomyAPI;
 use pocketmine\player\Player;
 use pocketmine\Server as PMServer;
 
-final class libEco{
+final class libEco
+{
     /**
-     * @return array<string, object>
+     * @return array<string, object|null>
      */
-    private static function getEconomy(): array{
-        $api = PMServer::getInstance()->getPluginManager()->getPlugin('EconomyAPI');
-        if ($api !== null) {
-            return [Utils::ECONOMYAPI, $api];
-        } else {
-            $api = PMServer::getInstance()->getPluginManager()->getPlugin('BedrockEconomy');
-            if ($api !== null) {
-                return [Utils::BEDROCKECONOMYAPI, $api];
-            } else{
-                return [null];
+    private static function getEconomy(): array
+    {
+        $economies = [];
+        $economyAPI = PMServer::getInstance()
+            ->getPluginManager()
+            ->getPlugin("EconomyAPI");
+        if ($economyAPI !== null) {
+            $economies[Utils::ECONOMYAPI] = $economyAPI;
+        }
+
+        $bedrockEconomy = PMServer::getInstance()
+            ->getPluginManager()
+            ->getPlugin("BedrockEconomy");
+        if ($bedrockEconomy !== null) {
+            $economies[
+                Utils::BEDROCKECONOMYAPI
+            ] = BedrockEconomyAPI::getInstance();
+        }
+
+        return $economies;
+    }
+
+    public function isInstall(): bool
+    {
+        return !empty(self::getEconomy());
+    }
+
+    public static function myMoney(Player $player, Closure $callback): void
+    {
+        $economies = self::getEconomy();
+
+        $balance = 0;
+        $callbacksRemaining = count($economies);
+
+        if ($callbacksRemaining === 0) {
+            $callback($balance);
+            return;
+        }
+
+        $closure = function ($amount) use (
+            &$balance,
+            &$callbacksRemaining,
+            $callback
+        ) {
+            $balance += $amount;
+            $callbacksRemaining--;
+
+            if ($callbacksRemaining === 0) {
+                $callback($balance);
+            }
+        };
+
+        foreach ($economies as $type => $economy) {
+            if ($type === Utils::ECONOMYAPI) {
+                $money = $economy->myMoney($player);
+                assert(is_float($money));
+                $closure($money);
+            } elseif ($type === Utils::BEDROCKECONOMYAPI) {
+                $economy->getPlayerBalance(
+                    $player->getName(),
+                    ClosureContext::create(static function (?int $balance) use (
+                        $closure
+                    ): void {
+                        $closure($balance ?? 0);
+                    })
+                );
             }
         }
     }
-    
-    public function isInstall(): bool{
-        return !is_null($this->getEconomy()[0]);
-    }
 
-    /**
-     * @return int
-     */
-    public static function myMoney(Player $player, Closure $callback): void{
-        if (self::getEconomy()[0] === Utils::ECONOMYAPI) {
-            $money = self::getEconomy()[1]->myMoney($player);
-            assert(is_float($money));
-            $callback($money);
-        } elseif (self::getEconomy()[0] === Utils::BEDROCKECONOMYAPI) {
-            self::getEconomy()[1]->getAPI()->getPlayerBalance($player->getName(), ClosureContext::create(static function (?int $balance) use ($callback): void {
-                $callback($balance ?? 0);
-            }));
+    public static function addMoney(Player $player, int $amount): void
+    {
+        $economies = self::getEconomy();
+
+        foreach ($economies as $type => $economy) {
+            if ($type === Utils::ECONOMYAPI) {
+                $economy->addMoney($player, $amount);
+            } elseif ($type === Utils::BEDROCKECONOMYAPI) {
+                $economy->addToPlayerBalance($player->getName(), $amount);
+            }
         }
     }
 
-    /**
-     * @param Player $player
-     * @param float $amount
-     * @return void
-     */
-    public static function addMoney(Player $player, float $amount): void{
-        if (self::getEconomy()[0] === Utils::ECONOMYAPI) {
-            self::getEconomy()[1]->addMoney($player, $amount);
-        } elseif (self::getEconomy()[0] === Utils::BEDROCKECONOMYAPI) {
-            self::getEconomy()[1]->getAPI()->addToPlayerBalance($player->getName(), (int) $amount);
-        }
-    }
+    public static function reduceMoney(
+        Player $player,
+        int $amount,
+        Closure $callback
+    ): void {
+        $economies = self::getEconomy();
 
-    /**
-     * @param Player $player
-     * @param float $amount
-     * @param Closure|null $callback
-     * @return void
-     */
-    public static function reduceMoney(Player $player, float $amount, ?Closure $callback = null): void{
-        if (self::getEconomy()[0] === Utils::ECONOMYAPI) {
-            $callback(self::getEconomy()[1]->reduceMoney($player, $amount) === EconomyAPI::RET_SUCCESS);
-        } elseif (self::getEconomy()[0] === Utils::BEDROCKECONOMYAPI) {
-            self::getEconomy()[1]->getAPI()->subtractFromPlayerBalance($player->getName(), (int)ceil($amount), $callback ? ClosureContext::create($callback) : null);
+        $success = true;
+        $callbacksRemaining = count($economies);
+
+        if ($callbacksRemaining === 0) {
+            $callback($success);
+            return;
+        }
+
+        $closure = function ($result) use (
+            &$success,
+            &$callbacksRemaining,
+            $callback
+        ) {
+            if (!$result) {
+                $success = false;
+            }
+            $callbacksRemaining--;
+
+            if ($callbacksRemaining === 0) {
+                $callback($success);
+            }
+        };
+
+        foreach ($economies as $type => $economy) {
+            if ($type === Utils::ECONOMYAPI) {
+                $result =
+                    $economy->reduceMoney($player, $amount) ===
+                    EconomyAPI::RET_SUCCESS;
+                $closure($result);
+            } elseif ($type === Utils::BEDROCKECONOMYAPI) {
+                $economy->subtractFromPlayerBalance(
+                    $player->getName(),
+                    (int) ceil($amount),
+                    ClosureContext::create(static function (bool $success) use (
+                        $closure
+                    ): void {
+                        $closure($success);
+                    })
+                );
+            }
         }
     }
 }
